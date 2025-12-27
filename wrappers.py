@@ -7,6 +7,9 @@ These modify the raw game environment to make it easier for the AI to learn:
 3. Frame stack - Stack 4 frames so AI can see motion
 4. Frame skip - Repeat each action for 4 frames (faster training)
 """
+import os
+os.environ['SDL_AUDIODRIVER'] = 'dummy'  # Disable SDL audio
+
 import gymnasium as gym
 import numpy as np
 from collections import deque
@@ -111,6 +114,9 @@ def make_env(render_mode=None):
         render_mode=render_mode,
         frameskip=4,  # Repeat each action 4 times
     )
+    # Disable sound
+    if hasattr(env.unwrapped, 'ale'):
+        env.unwrapped.ale.setBool('sound', False)
     env = GrayscaleResizeWrapper(env)
     env = FrameStackWrapper(env, n_frames=4)
     env = NormalizeWrapper(env)
