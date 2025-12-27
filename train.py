@@ -18,6 +18,7 @@ def train(
     demo_every: int = 50,
     save_every: int = 100,
     min_buffer_size: int = 10_000,
+    resume_from: str = None,
 ):
     """
     Train the DQN agent.
@@ -27,6 +28,7 @@ def train(
         demo_every: Play a visible demo every N episodes
         save_every: Save model every N episodes
         min_buffer_size: Fill buffer this much before learning
+        resume_from: Path to model checkpoint to resume from
     """
     # Create environments
     env = make_env(render_mode=None)  # Fast, no rendering
@@ -44,6 +46,11 @@ def train(
         epsilon_decay=100_000,
         target_update_freq=1000,
     )
+
+    # Resume from checkpoint if provided
+    if resume_from and os.path.exists(resume_from):
+        agent.load(resume_from)
+        print(f"Resumed from {resume_from} (steps: {agent.steps_done}, epsilon: {agent.epsilon:.3f})")
 
     # Track progress
     recent_rewards = deque(maxlen=100)
@@ -138,8 +145,17 @@ def play_demo(env, agent):
 
 
 if __name__ == "__main__":
+    import sys
+
+    # Check for --resume flag
+    resume_path = None
+    if '--resume' in sys.argv:
+        resume_path = 'models/final_model.pth'
+        # Or use a specific checkpoint: models/checkpoint_ep500.pth
+
     train(
         num_episodes=500,  # Start with 500, increase for better results
         demo_every=50,     # Watch every 50 episodes
         save_every=100,
+        resume_from=resume_path,
     )
