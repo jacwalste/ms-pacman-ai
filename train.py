@@ -14,7 +14,7 @@ from dqn_agent import DQNAgent
 
 
 def train(
-    num_episodes: int = 1000,
+    num_episodes: int = 10000,
     demo_every: int = 50,
     save_every: int = 100,
     min_buffer_size: int = 10_000,
@@ -144,18 +144,30 @@ def play_demo(env, agent):
     return total_reward
 
 
+def find_latest_model():
+    """Find the most recently modified .pth file in models/."""
+    import glob
+    models = glob.glob('models/*.pth')
+    if not models:
+        return None
+    return max(models, key=os.path.getmtime)
+
+
 if __name__ == "__main__":
     import sys
 
     # Check for --resume flag
     resume_path = None
     if '--resume' in sys.argv:
-        resume_path = 'models/final_model.pth'
-        # Or use a specific checkpoint: models/checkpoint_ep500.pth
+        resume_path = find_latest_model()
+        if resume_path:
+            print(f"Found most recent model: {resume_path}")
+        else:
+            print("No models found to resume from, starting fresh.")
 
     train(
-        num_episodes=500,  # Start with 500, increase for better results
-        demo_every=50,     # Watch every 50 episodes
+        num_episodes=10000,
+        demo_every=50,
         save_every=100,
         resume_from=resume_path,
     )
