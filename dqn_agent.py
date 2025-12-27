@@ -136,9 +136,11 @@ class DQNAgent:
         # Current Q-values: Q(s, a) for the actions we took
         current_q = self.policy_net(states).gather(1, actions.unsqueeze(1)).squeeze(1)
 
-        # Target Q-values: r + gamma * max_a' Q_target(s', a')
+        # Double DQN: policy net picks best action, target net evaluates it
+        # This reduces overestimation bias from regular DQN
         with torch.no_grad():
-            next_q = self.target_net(next_states).max(dim=1)[0]
+            best_actions = self.policy_net(next_states).argmax(dim=1)
+            next_q = self.target_net(next_states).gather(1, best_actions.unsqueeze(1)).squeeze(1)
             target_q = rewards + self.gamma * next_q * (1 - dones)
 
         # Compute loss and update
