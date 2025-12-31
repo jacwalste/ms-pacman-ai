@@ -158,6 +158,7 @@ class RainbowAgent:
         self.n_step_buffer = NStepBuffer(n_steps, gamma)
 
         self.steps_done = 0
+        self.episodes_done = 0  # Track total episodes for model comparison
 
     def select_action(self, state: np.ndarray, training: bool = True) -> int:
         """
@@ -272,13 +273,15 @@ class RainbowAgent:
 
         return loss.item()
 
-    def save(self, path: str):
+    def save(self, path: str, episodes: int = None):
         """Save model weights."""
         torch.save({
             'policy_net': self.policy_net.state_dict(),
             'target_net': self.target_net.state_dict(),
             'optimizer': self.optimizer.state_dict(),
             'steps_done': self.steps_done,
+            'episodes_done': episodes if episodes else self.episodes_done,
+            'model_type': 'rainbow',
         }, path)
 
     def load(self, path: str):
@@ -288,6 +291,7 @@ class RainbowAgent:
         self.target_net.load_state_dict(checkpoint['target_net'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
         self.steps_done = checkpoint['steps_done']
+        self.episodes_done = checkpoint.get('episodes_done', 0)
 
 
 # Test

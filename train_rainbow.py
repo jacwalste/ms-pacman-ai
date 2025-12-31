@@ -44,13 +44,18 @@ def train(
     )
 
     # Resume from checkpoint if provided
+    start_episode = 1
     if resume_from and os.path.exists(resume_from):
         agent.load(resume_from)
-        print(f"Resumed from {resume_from} (steps: {agent.steps_done})")
+        start_episode = agent.episodes_done + 1
+        print(f"Resumed from {resume_from} (episodes: {agent.episodes_done}, steps: {agent.steps_done})")
 
     # Track progress
     recent_rewards = deque(maxlen=100)
     best_avg_reward = float('-inf')
+
+    # Milestones to save at (for model comparison)
+    milestones = {500, 1000, 2000, 3000, 5000, 7500, 10000, 15000, 20000}
 
     # Create models directory
     os.makedirs('models', exist_ok=True)
@@ -81,7 +86,8 @@ def train(
     print(f"Buffer filled with {len(agent.buffer)} experiences. Starting training!")
     print("-" * 60)
 
-    for episode in range(1, num_episodes + 1):
+    end_episode = start_episode + num_episodes - 1
+    for episode in range(start_episode, end_episode + 1):
         state, _ = env.reset()
         episode_reward = 0
         episode_loss = []
@@ -111,13 +117,21 @@ def train(
             f"Loss: {avg_loss:.4f}"
         )
 
+        # Update episode count
+        agent.episodes_done = episode
+
         if avg_reward > best_avg_reward and episode >= 100:
             best_avg_reward = avg_reward
-            agent.save('models/rainbow_best.pth')
+            agent.save('models/rainbow_best.pth', episodes=episode)
             print(f"  -> New best average! Saved model.")
 
+        # Save at milestones (for model comparison)
+        if episode in milestones:
+            agent.save(f'models/rainbow_ep{episode}.pth', episodes=episode)
+            print(f"  -> Milestone! Saved rainbow_ep{episode}.pth")
+
         if episode % save_every == 0:
-            agent.save(f'models/rainbow_checkpoint_ep{episode}.pth')
+            agent.save(f'models/rainbow_checkpoint_ep{episode}.pth', episodes=episode)
 
         if episode % demo_every == 0:
             print("\nDemo time! Watch Rainbow play...")
@@ -126,8 +140,8 @@ def train(
 
     env.close()
     demo_env.close()
-    agent.save('models/rainbow_final.pth')
-    print("Training complete!")
+    agent.save('models/rainbow_final.pth', episodes=episode)
+    print(f"Training complete! Total episodes: {episode}")
 
 
 def play_demo(env, agent):

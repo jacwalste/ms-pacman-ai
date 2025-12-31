@@ -48,13 +48,18 @@ def train(
     )
 
     # Resume from checkpoint if provided
+    start_episode = 1
     if resume_from and os.path.exists(resume_from):
         agent.load(resume_from)
-        print(f"Resumed from {resume_from} (steps: {agent.steps_done}, epsilon: {agent.epsilon:.3f})")
+        start_episode = agent.episodes_done + 1
+        print(f"Resumed from {resume_from} (episodes: {agent.episodes_done}, steps: {agent.steps_done}, epsilon: {agent.epsilon:.3f})")
 
     # Track progress
     recent_rewards = deque(maxlen=100)
     best_avg_reward = float('-inf')
+
+    # Milestones to save at (for model comparison)
+    milestones = {500, 1000, 2000, 3000, 5000, 7500, 10000, 15000, 20000}
 
     # Create models directory
     os.makedirs('models', exist_ok=True)
@@ -71,7 +76,8 @@ def train(
     print(f"Buffer filled with {len(agent.buffer)} experiences. Starting training!")
     print("-" * 60)
 
-    for episode in range(1, num_episodes + 1):
+    end_episode = start_episode + num_episodes - 1
+    for episode in range(start_episode, end_episode + 1):
         state, _ = env.reset()
         episode_reward = 0
         episode_loss = []
@@ -106,15 +112,23 @@ def train(
             f"Loss: {avg_loss:.4f}"
         )
 
+        # Update episode count
+        agent.episodes_done = episode
+
         # Save best model
         if avg_reward > best_avg_reward and episode >= 100:
             best_avg_reward = avg_reward
-            agent.save('models/best_model.pth')
-            print(f"  ↳ New best average! Saved model.")
+            agent.save('models/dqn_best.pth', episodes=episode)
+            print(f"  -> New best average! Saved model.")
+
+        # Save at milestones (for model comparison)
+        if episode in milestones:
+            agent.save(f'models/dqn_ep{episode}.pth', episodes=episode)
+            print(f"  -> Milestone! Saved dqn_ep{episode}.pth")
 
         # Save periodic checkpoint
         if episode % save_every == 0:
-            agent.save(f'models/checkpoint_ep{episode}.pth')
+            agent.save(f'models/dqn_checkpoint_ep{episode}.pth', episodes=episode)
 
         # Play demo
         if episode % demo_every == 0:
@@ -124,8 +138,8 @@ def train(
 
     env.close()
     demo_env.close()
-    agent.save('models/final_model.pth')
-    print("Training complete!")
+    agent.save('models/dqn_final.pth', episodes=episode)
+    print(f"Training complete! Total episodes: {episode}")
 
 
 def play_demo(env, agent):
@@ -144,10 +158,14 @@ def play_demo(env, agent):
     return total_reward
 
 
-def find_latest_model():
-    """Find the most recently modified .pth file in models/."""
+def find_latest_dqn_model():
+    """Find the most recently modified DQN .pth file in models/."""
     import glob
-    models = glob.glob('models/*.pth')
+    models = glob.glob('models/dqn_*.pth')
+    if not models:
+        # Fallback to old naming for backwards compatibility
+        models = glob.glob('models/*.pth')
+        models = [m for m in models if 'rainbow' not in m]
     if not models:
         return None
     return max(models, key=os.path.getmtime)
@@ -159,11 +177,11 @@ if __name__ == "__main__":
     # Check for --resume flag
     resume_path = None
     if '--resume' in sys.argv:
-        resume_path = find_latest_model()
+        resume_path = find_latest_dqn_model()
         if resume_path:
-            print(f"Found most recent model: {resume_path}")
+            print(f"Found most recent DQN model: {resume_path}")
         else:
-            print("No models found to resume from, starting fresh.")
+            print("No DQN models found, starting fresh.")
 
     train(
         num_episodes=10000,

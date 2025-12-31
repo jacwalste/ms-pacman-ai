@@ -80,6 +80,9 @@ class DQNAgent:
         # Replay buffer
         self.buffer = ReplayBuffer(buffer_capacity)
 
+        # Track total episodes for model comparison
+        self.episodes_done = 0
+
     @property
     def epsilon(self):
         """Current exploration rate (decays over time)."""
@@ -160,22 +163,25 @@ class DQNAgent:
 
         return loss.item()
 
-    def save(self, path: str):
+    def save(self, path: str, episodes: int = None):
         """Save the model weights."""
         torch.save({
             'policy_net': self.policy_net.state_dict(),
             'target_net': self.target_net.state_dict(),
             'optimizer': self.optimizer.state_dict(),
             'steps_done': self.steps_done,
+            'episodes_done': episodes if episodes else self.episodes_done,
+            'model_type': 'dqn',
         }, path)
 
     def load(self, path: str):
         """Load model weights."""
-        checkpoint = torch.load(path, map_location=self.device)
+        checkpoint = torch.load(path, map_location=self.device, weights_only=False)
         self.policy_net.load_state_dict(checkpoint['policy_net'])
         self.target_net.load_state_dict(checkpoint['target_net'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
         self.steps_done = checkpoint['steps_done']
+        self.episodes_done = checkpoint.get('episodes_done', 0)
 
 
 # Quick test
