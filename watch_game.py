@@ -40,46 +40,59 @@ def find_best_model(game: str) -> str:
     return None
 
 
-def watch(game: str, model_path: str = None, num_games: int = 3, delay: float = 0.02):
+def watch(game: str, model_path: str = None, num_games: int = 3, delay: float = 0.02, untrained: bool = False):
     """Watch the agent play."""
-    # Find model if not specified
-    if model_path is None:
-        model_path = find_best_model(game)
+    # Create environment first (needed for num_actions)
+    env = make_env(render_mode='human', game=game)
+    num_actions = env.action_space.n
+
+    if untrained:
+        # Run with fresh untrained agent
+        print(f"=" * 50)
+        print(f"WATCHING: {game} (UNTRAINED)")
+        print(f"=" * 50)
+        print(f"Model: None (random initialization)")
+        print(f"Trained for: 0 episodes")
+        print(f"=" * 50)
+        print()
+
+        agent = RainbowAgent(num_actions=num_actions)
+    else:
+        # Find model if not specified
         if model_path is None:
-            print(f"No trained model found for {game}!")
-            print(f"Train one with: python train_game.py --game {game}")
+            model_path = find_best_model(game)
+            if model_path is None:
+                print(f"No trained model found for {game}!")
+                print(f"Train one with: python train_game.py --game {game}")
+                sys.exit(1)
+
+        if not os.path.exists(model_path):
+            print(f"Model not found: {model_path}")
             sys.exit(1)
 
-    if not os.path.exists(model_path):
-        print(f"Model not found: {model_path}")
-        sys.exit(1)
+        # Load checkpoint to get info
+        checkpoint = torch.load(model_path, map_location='cpu', weights_only=False)
+        episodes_trained = checkpoint.get('episodes_done', '?')
+        saved_game = checkpoint.get('game', game)
+        ckpt_num_actions = checkpoint.get('num_actions')
 
-    # Load checkpoint to get info
-    checkpoint = torch.load(model_path, map_location='cpu', weights_only=False)
-    episodes_trained = checkpoint.get('episodes_done', '?')
-    saved_game = checkpoint.get('game', game)
-    num_actions = checkpoint.get('num_actions')
+        print(f"=" * 50)
+        print(f"WATCHING: {game}")
+        print(f"=" * 50)
+        print(f"Model: {model_path}")
+        print(f"Trained for: {episodes_trained} episodes")
+        if saved_game and saved_game != game:
+            print(f"WARNING: Model was trained on {saved_game}, playing {game}")
+        print(f"=" * 50)
+        print()
 
-    print(f"=" * 50)
-    print(f"WATCHING: {game}")
-    print(f"=" * 50)
-    print(f"Model: {model_path}")
-    print(f"Trained for: {episodes_trained} episodes")
-    if saved_game and saved_game != game:
-        print(f"WARNING: Model was trained on {saved_game}, playing {game}")
-    print(f"=" * 50)
-    print()
+        # Use num_actions from checkpoint if available
+        if ckpt_num_actions is not None:
+            num_actions = ckpt_num_actions
 
-    # Create environment
-    env = make_env(render_mode='human', game=game)
-
-    # Use num_actions from checkpoint if available, else from env
-    if num_actions is None:
-        num_actions = env.action_space.n
-
-    # Create and load agent
-    agent = RainbowAgent(num_actions=num_actions)
-    agent.load(model_path)
+        # Create and load agent
+        agent = RainbowAgent(num_actions=num_actions)
+        agent.load(model_path)
 
     total_rewards = []
 
@@ -150,9 +163,11 @@ if __name__ == "__main__":
                         help='List all available models')
     parser.add_argument('--delay', type=float, default=0.02,
                         help='Delay between frames (seconds)')
+    parser.add_argument('--untrained', action='store_true',
+                        help='Run with untrained agent (random initialization)')
     args = parser.parse_args()
 
     if args.list:
         list_models()
     else:
-        watch(args.game, args.model, args.games, args.delay)
+        watch(args.game, args.model, args.games, args.delay, args.untrained)
