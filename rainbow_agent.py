@@ -273,7 +273,7 @@ class RainbowAgent:
 
         return loss.item()
 
-    def save(self, path: str, episodes: int = None):
+    def save(self, path: str, episodes: int = None, game: str = None):
         """Save model weights."""
         torch.save({
             'policy_net': self.policy_net.state_dict(),
@@ -282,6 +282,8 @@ class RainbowAgent:
             'steps_done': self.steps_done,
             'episodes_done': episodes if episodes else self.episodes_done,
             'model_type': 'rainbow',
+            'game': game,
+            'num_actions': self.num_actions,
         }, path)
 
     def load(self, path: str):

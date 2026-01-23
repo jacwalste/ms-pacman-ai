@@ -104,13 +104,18 @@ class FireResetWrapper(gym.Wrapper):
         return obs, info
 
 
-def make_env(render_mode=None):
-    """Create a wrapped Ms. Pac-Man environment."""
+def make_env(render_mode=None, game='MsPacman'):
+    """Create a wrapped Atari environment.
+
+    Args:
+        render_mode: None for training, 'human' for watching
+        game: Atari game name (e.g., 'MsPacman', 'Pong', 'Breakout')
+    """
     import ale_py
     gym.register_envs(ale_py)
 
     env = gym.make(
-        'ALE/MsPacman-v5',
+        f'ALE/{game}-v5',
         render_mode=render_mode,
         frameskip=4,  # Repeat each action 4 times
     )
