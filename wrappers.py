@@ -89,21 +89,6 @@ class NormalizeWrapper(gym.ObservationWrapper):
         return obs.astype(np.float32) / 255.0
 
 
-class FireResetWrapper(gym.Wrapper):
-    """Press FIRE at the start of the game (required for some Atari games)."""
-
-    def __init__(self, env):
-        super().__init__(env)
-
-    def reset(self, **kwargs):
-        obs, info = self.env.reset(**kwargs)
-        # Action 1 is usually FIRE
-        obs, _, terminated, truncated, info = self.env.step(1)
-        if terminated or truncated:
-            obs, info = self.env.reset(**kwargs)
-        return obs, info
-
-
 def make_env(render_mode=None, game='MsPacman'):
     """Create a wrapped Atari environment.
 
